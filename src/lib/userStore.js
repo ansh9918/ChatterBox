@@ -1,31 +1,29 @@
-import supabase from "./supabase";
 import { create } from "zustand";
+import supabase from "./supabase";
 
 export const useUserStore = create((set) => ({
-  isComponentVisible: false, // Track if the component is visible
-  toggleComponentVisibility: () =>
-    set((state) => ({ isComponentVisible: !state.isComponentVisible })),
   currentUser: null,
   isLoading: true,
+
   fetchUserInfo: async (uid) => {
     if (!uid) return set({ currentUser: null, isLoading: false });
 
     try {
-      const { data: user, error } = await supabase
+      const { data, error } = await supabase
         .from("users")
         .select("*")
-        .eq("id", uid)
-        .single(); // Ensure we get only a single record
+        .eq("id", uid);
 
-      if (error) {
-        console.error("Error fetching user:", error);
-        set({ currentUser: null, isLoading: false });
+      if (error) throw error;
+
+      if (data.length > 0) {
+        set({ currentUser: data[0], isLoading: false });
       } else {
-        set({ currentUser: user, isLoading: false });
+        set({ currentUser: null, isLoading: false });
       }
     } catch (err) {
-      console.error("Unexpected error:", err);
-      set({ currentUser: null, isLoading: false });
+      console.log(err);
+      return set({ currentUser: null, isLoading: false });
     }
   },
 }));

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import supabase from "../../lib/supabase";
-import uploadWithProgress from "../../lib/upload";
+import upload from "../../lib/upload";
 
 const Login = () => {
   const [avatar, setAvatar] = useState({
@@ -37,21 +37,21 @@ const Login = () => {
     }
 
     // Check if username is unique
-    // const { data: existingUsers, error: usernameError } = await supabase
-    //   .from("users")
-    //   .select("*")
-    //   .eq("username", username);
+    const { data: existingUsers, error: usernameError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("username", username);
 
-    // if (usernameError) {
-    //   toast.error("Error checking username!");
-    //   setLoading(false);
-    //   return;
-    // }
-    // if (existingUsers.length > 0) {
-    //   toast.warn("Select another username");
-    //   setLoading(false);
-    //   return;
-    // }
+    if (usernameError) {
+      toast.error("Error checking username!");
+      setLoading(false);
+      return;
+    }
+    if (existingUsers.length > 0) {
+      toast.warn("Select another username");
+      setLoading(false);
+      return;
+    }
 
     try {
       // Create user with Supabase authentication
@@ -63,30 +63,26 @@ const Login = () => {
       if (signUpError) throw signUpError;
 
       // Upload avatar image
-      const imgUrl = await uploadWithProgress(avatar.file, (progress) => {
-        console.log(`Upload is ${progress}% done`);
-        // Optionally update UI with progress (e.g., a progress bar)
-      });
+      const imgUrl = await upload(avatar.file, user.user.id);
 
       // Insert user data into "users" table
-      const { error: insertError } = await supabase.from("users").insert([
-        {
-          id: user.user.id,
-          username,
-          email,
-          avatar: imgUrl,
-          blocked: [],
-        },
-      ]);
+      const { error: insertError } = await supabase.from("users").insert({
+        id: user.user.id,
+        username,
+        email,
+        avatar: imgUrl,
+        blocked: [],
+      });
 
       if (insertError) throw insertError;
 
       // Initialize userchats data
-      const { error: chatError } = await supabase
-        .from("userchats")
-        .insert([{ chats: [] }]);
+      const { error: initError } = await supabase.from("userchats").insert({
+        id: user.user.id,
+        chats: [],
+      });
 
-      if (chatError) throw chatError;
+      if (initError) throw initError;
 
       toast.success("Account created! You can log in now!");
     } catch (err) {
@@ -113,6 +109,7 @@ const Login = () => {
       if (error) throw error;
 
       toast.success("Logged in successfully!");
+
       // You can redirect the user or handle successful login here
     } catch (err) {
       console.log(err);

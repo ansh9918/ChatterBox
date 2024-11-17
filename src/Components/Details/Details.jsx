@@ -1,11 +1,9 @@
 import { useChatStore } from "../../lib/chatStore";
 import supabase from "../../lib/supabase";
 import { useUserStore } from "../../lib/userStore";
-import { useState, useEffect } from "react";
 
 const Details = () => {
   const {
-    
     user,
     isCurrentUserBlocked,
     isReceiverBlocked,
@@ -61,32 +59,6 @@ const Details = () => {
     }
   };
 
-  const [sharedImages, setSharedImages] = useState([]);
-
-  useEffect(() => {
-    if (!user || !currentUser) return; // Exit if no chat user or current user is selected
-
-    const fetchSharedImages = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("shared_images")
-          .select("image_url, sender_id, receiver_id")
-          .or(
-            `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`,
-          )
-          .order("timestamp", { ascending: true });
-
-        if (error) throw error;
-
-        setSharedImages(data);
-      } catch (err) {
-        console.error("Error fetching shared images:", err);
-      }
-    };
-
-    fetchSharedImages();
-  }, [user, currentUser]);
-
   return (
     <div className="flex flex-1 flex-col items-center justify-center">
       <div className="flex w-full flex-col items-center gap-[10px] border-b border-b-[#dddddd35] p-3">
@@ -137,29 +109,23 @@ const Details = () => {
           </div>
 
           <div className="flex flex-col gap-[10px] p-3">
-            {sharedImages.map((image, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center justify-center gap-4">
-                  <img
-                    src={image.image_url}
-                    alt="Shared"
-                    className="h-9 w-9 rounded-lg object-cover"
-                  />
-                  <h3 className="text-xs">
-                    {image.sender_id === currentUser.id
-                      ? "You sent this"
-                      : "They sent this"}
-                  </h3>
-                </div>
-                <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
-                  <img
-                    src="./download.png"
-                    alt=""
-                    className="h-full w-full bg-transparent p-[6px]"
-                  />
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-center gap-4">
+                <img
+                  src=""
+                  alt="Shared"
+                  className="h-9 w-9 rounded-lg object-cover"
+                />
+                <h1>photo.png</h1>
               </div>
-            ))}
+              <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
+                <img
+                  src="./download.png"
+                  alt=""
+                  className="h-full w-full bg-transparent p-[6px]"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

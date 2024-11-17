@@ -1,31 +1,39 @@
+import { toast } from "react-toastify";
 import supabase from "./supabase";
 
-const uploadWithProgress = async (file, onProgress) => {
+// Function to upload the file to a user-specific folder in Supabase storage
+const upload = async (file, uid) => {
+  // Create a file path with the user's UID as a folder
   const date = new Date();
   const fileName = `${date.getTime()}_${file.name}`;
+  const filePath = `${uid}/${fileName}`;
 
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(fileName, file, {
-      cacheControl: "3600", // Cache for 1 hour
-      upsert: true,
-      onUploadProgress: (progressEvent) => {
-        const progress = Math.round(
-          (progressEvent.loaded / progressEvent.total) * 100,
-        );
-        onProgress(progress);
-      },
-    });
+  try {
+    const { error } = await supabase.storage
+      .from("data")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-  if (error) {
-    throw new Error("Something went wrong! " + error.message);
+    if (error) throw error;
+    toast.success("Upload successful");
+    // console.log("Upload successful");
+  } catch (error) {
+    console.error("Upload error:", error.message);
   }
 
-  const { data: fileData } = supabase.storage
-    .from("avatars")
-    .getPublicUrl(fileName);
+  // Get the public URL of the uploaded file
+  const { data: fileUrl, error: urlError } = supabase.storage
+    .from("data")
+    .getPublicUrl(filePath);
 
-  return fileData.publicUrl;
+  if (urlError) {
+    toast.error("Error getting public URL: " + urlError.message);
+    throw new Error("Error getting public URL: " + urlError.message);
+  }
+
+  return fileUrl.publicUrl;
 };
 
-export default uploadWithProgress;
+export default upload;

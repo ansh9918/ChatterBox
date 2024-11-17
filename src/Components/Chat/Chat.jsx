@@ -3,14 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "../../lib/userStore";
 import supabase from "../../lib/supabase";
 import { useChatStore } from "../../lib/chatStore";
-import { format } from "prettier";
-import uploadWithProgress from "../../lib/upload";
+import { format, parseISO } from "date-fns"; // Corrected import
+import upload from "../../lib/upload";
 
 const Chat = () => {
-  const [emoji, setEmoji] = useState(false);
-  const [chat, setChat] = useState();
-
-  const [text, setText] = useState("");
+  const [emoji, setEmoji] = useState(false); // Controls emoji picker visibility
+  const [chat, setChat] = useState(null); // Current chat object
+  const [text, setText] = useState(""); // Current input text
   const [img, setImg] = useState({
     file: null,
     url: "",
@@ -18,51 +17,80 @@ const Chat = () => {
 
   const { currentUser } = useUserStore();
   const { chatId, user, isCurrentUserBlocked, isReceiverBlocked } =
-    useChatStore();
-  const toggleComponentVisibility = useUserStore(
-    (state) => state.toggleComponentVisibility,
-  );
+    useChatStore(); // Get chat ID and user details
 
-  const endRef = useRef(null);
+  const endRef = useRef(null); // For scrolling to the latest message
 
+  // Auto-scroll to the last message when chat messages change
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [chat?.messages]);
 
+  // Fetch chat details and set up real-time updates
   useEffect(() => {
     const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("chats")
-        .select("*")
-        .eq("id", chatId);
+      console.log("Fetching chat messages for chatId:", chatId);
 
-      if (error) console.error("Error fetching chat messages:", error);
-      else setChat(data[0]);
+      const { data, error } = await supabase
+        .from("userchats")
+        .select("chats")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching chat messages:", error);
+        return;
+      }
+
+      console.log("Fetched userchats data:", data);
+
+      // Find the chat object corresponding to chatId
+      const currentChat = data.chats.find((c) => c.chatId === chatId);
+
+      if (!currentChat) {
+        console.warn("No chat found for chatId:", chatId);
+        setChat({ messages: [] }); // Default to empty messages
+        return;
+      }
+
+      console.log("Fetched chat object:", currentChat);
+      setChat(currentChat);
     };
 
     fetchMessages();
 
+    // Real-time subscription to userchats updates
     const subscription = supabase
-      .channel("public:chats:id=eq." + chatId)
+      .channel("public:userchats")
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "chats" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "userchats",
+          filter: `id=eq.${currentUser.id}`,
+        },
         (payload) => {
-          setChat(payload.new);
+          console.log("Real-time update received:", payload);
+          fetchMessages(); // Re-fetch chat on update
         },
       )
       .subscribe();
 
     return () => {
-      supabase.removeSubscription(subscription);
+      console.log("Unsubscribing from real-time updates.");
+      supabase.removeChannel(subscription);
     };
-  }, [chatId]);
+  }, [currentUser.id, chatId]);
 
+  // Handle emoji selection
   const handleEmoji = (e) => {
     setText((prev) => prev + e.emoji);
-    setEmoji(false);
+    // Append emoji to text input
+    setEmoji(false); // Close emoji picker
   };
 
+  // Handle image selection
   const handleImg = (e) => {
     if (e.target.files[0]) {
       setImg({
@@ -72,142 +100,208 @@ const Chat = () => {
     }
   };
 
+  // Handle sending a message
   const handleSend = async () => {
     if (text === "") return;
 
     let imgUrl = null;
 
     try {
-      if (img.file) {
-        imgUrl = await uploadWithProgress(img.file);
-      }
+      console.log("Sending message...");
 
-      // Add message to the chat
+      // Handle image upload if an image is provided
+      if (img.file) {
+        const { data: imgUrlData, error: imgUrlError } = await upload(img.file);
+        if (imgUrlError) {
+          console.error("Error uploading image:", imgUrlError);
+        } else {
+          imgUrl = imgUrlData;
+          console.log("Image uploaded successfully:", imgUrl);
+        }
+      }
       const newMessage = {
-        sender_id: currentUser.id,
+        senderId: currentUser.id, // ID of the sender
         text,
-        created_at: new Date(),
+        createdAt: new Date().toISOString(),
         ...(imgUrl && { img: imgUrl }),
       };
 
-      const { error } = await supabase
-        .from("chats")
-        .update({ messages: [...(chat.messages || []), newMessage] })
-        .eq("id", chatId);
+      // Fetch chats for the current user
+      const { data: currentUserChats, error: currentUserError } = await supabase
+        .from("userchats")
+        .select("chats")
+        .eq("id", currentUser.id)
+        .single();
 
-      if (error) throw error;
+      if (currentUserError) {
+        console.error("Error fetching current user's chats:", currentUserError);
+        return;
+      }
 
-      // Update userchats metadata
-      const userIDs = [currentUser.id, user.id];
-      userIDs.forEach(async (id) => {
-        const { data, error } = await supabase
-          .from("userchats")
-          .select("chats")
-          .eq("user_id", id)
-          .single();
-
-        if (error) throw error;
-
-        const userChats = data.chats;
-        const chatIndex = userChats.findIndex((c) => c.chat_id === chatId);
-
-        if (chatIndex !== -1) {
-          userChats[chatIndex] = {
-            ...userChats[chatIndex],
-            last_message: text,
-            is_seen: id === currentUser.id,
-            updated_at: new Date(),
+      // Update the chat messages for the current user
+      const updatedChatsForCurrentUser = currentUserChats.chats.map((chat) => {
+        if (chat.chatId === chatId) {
+          return {
+            ...chat,
+            lastMessage: text,
+            updatedAt: new Date().toISOString(),
+            messages: [...(chat.messages || []), newMessage],
           };
-
-          const { error: updateError } = await supabase
-            .from("userchats")
-            .update({ chats: userChats })
-            .eq("user_id", id);
-
-          if (updateError)
-            console.error("Error updating user chat:", updateError);
         }
+        return chat;
       });
+
+      await supabase
+        .from("userchats")
+        .update({ chats: updatedChatsForCurrentUser })
+        .eq("id", currentUser.id);
+
+      console.log("Message added to current user's chats.");
+
+      // Fetch chats for the receiver
+      const { data: receiverChats, error: receiverError } = await supabase
+        .from("userchats")
+        .select("chats")
+        .eq("id", user.id)
+        .single();
+
+      if (receiverError) {
+        console.error("Error fetching receiver's chats:", receiverError);
+        return;
+      }
+
+      // Update the chat messages for the receiver
+      const updatedChatsForReceiver = receiverChats.chats.map((chat) => {
+        if (chat.chatId === chatId) {
+          return {
+            ...chat,
+            lastMessage: text,
+            updatedAt: new Date().toISOString(),
+            isSeen: false, // Mark as unseen for the receiver
+            messages: [...(chat.messages || []), newMessage],
+          };
+        }
+        return chat;
+      });
+
+      await supabase
+        .from("userchats")
+        .update({ chats: updatedChatsForReceiver })
+        .eq("id", user.id);
+
+      console.log("Message added to receiver's chats.");
     } catch (err) {
-      console.log("Error sending message:", err);
+      console.error("Error sending message:", err);
     } finally {
       setImg({
         file: null,
         url: "",
       });
       setText("");
+      console.log("Message send process completed.");
     }
   };
 
   return (
     <div className="flex h-[100%] flex-2 flex-col border-r border-r-[#dddddd35]">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-b-[#dddddd35] p-3 px-5">
-        <div className="flex items-center justify-start gap-5">
+        <div className="flex items-center gap-5">
           <img
             src={user?.avatar || "./avatar.png"}
-            alt=""
-            className="h-12 w-12 rounded-full"
+            alt="User Avatar"
+            className="h-12 w-12 rounded-full object-cover"
           />
           <div className="flex flex-col gap-[6px]">
             <h3 className="text-sm font-medium tracking-wide">
-              {user?.username}
+              {user?.username || "Unknown User"}
             </h3>
           </div>
         </div>
-        <div className="flex items-center justify-center gap-4">
-          <img src="./phone.png" alt="" className="h-4 w-4 cursor-pointer" />
-          <img src="./video.png" alt="" className="h-4 w-4 cursor-pointer" />
+        <div className="flex items-center gap-4">
           <img
-            src="info.png"
-            alt=""
+            src="./phone.png"
+            alt="Call"
             className="h-4 w-4 cursor-pointer"
-            onClick={toggleComponentVisibility}
           />
+          <img
+            src="./video.png"
+            alt="Video Call"
+            className="h-4 w-4 cursor-pointer"
+          />
+          <img src="./info.png" alt="Info" className="h-4 w-4 cursor-pointer" />
         </div>
       </div>
-      <div className="center flex flex-1 flex-col gap-5 overflow-y-auto p-4">
-        {chat?.messages?.map((message) => (
-          <div
-            className={
-              message.senderId === currentUser?.id
-                ? "message-own max-w-[70%] self-end"
-                : "message flex max-w-[70%] gap-3"
-            }
-            key={message?.createAt}
-          >
-            <img
-              src="./avatar.png"
-              alt=""
-              className={
-                message.senderId === currentUser?.id
-                  ? "hidden"
-                  : "h-5 w-5 rounded-full"
-              }
-            />
-            <div className="flex flex-col gap-2">
-              {message.img && <img src={message.img} alt="" />}
-              <p
-                className={
-                  message.senderId === currentUser?.id
-                    ? "rounded-lg bg-purple-500 p-3 text-sm"
-                    : "rounded-lg bg-[rgb(17,25,40)]/30 p-3 text-sm"
-                }
-              >
-                {message.text}
-              </p>
-              <span className="text-[11px]">
-                {format(message.createdAt.toDate())}
-              </span>
-            </div>
-          </div>
-        ))}
 
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
+        {chat?.messages?.map((message, index) => {
+          const isCurrentUser = message.senderId === currentUser?.id;
+
+          return (
+            <div
+              key={index}
+              className={`flex gap-3 ${
+                isCurrentUser ? "justify-end" : "justify-start"
+              }`}
+            >
+              {/* Sender's Avatar */}
+              {!isCurrentUser && (
+                <img
+                  src={user?.avatar || "./avatar.png"}
+                  alt="Sender Avatar"
+                  className="h-5 w-5 rounded-full object-cover"
+                />
+              )}
+              {/* Message Bubble */}
+              <div
+                className={`flex flex-col ${
+                  isCurrentUser ? "items-end" : "items-start"
+                }`}
+              >
+                {/* Message Image */}
+                {message.img && (
+                  <img
+                    src={message.img}
+                    alt="Message Attachment"
+                    className="max-w-[200px] rounded-lg"
+                  />
+                )}
+                {/* Message Text */}
+                <p
+                  className={`rounded-lg p-3 text-sm ${
+                    isCurrentUser
+                      ? "bg-purple-500 text-white"
+                      : "bg-[rgb(17,25,40)]/30 text-white"
+                  }`}
+                >
+                  {message.text || "No content"}
+                </p>
+                {/* Message Timestamp */}
+                <span className="text-[11px] text-gray-500">
+                  {message.createdAt
+                    ? format(
+                        parseISO(message.createdAt), // Parse the ISO string to a valid date
+                        "PPpp",
+                      )
+                    : "Invalid date"}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        {/* Scroll-to-Bottom Ref */}
         <div ref={endRef}></div>
       </div>
+
+      {/* Input Controls */}
       <div className="bottom mt-auto flex items-center justify-between gap-5 border-t border-t-[#dddddd35] p-4">
-        <div className="flex items-center justify-center gap-5">
-          <label htmlFor="">
-            <img src="./img.png" alt="" className="h-4 w-4 cursor-pointer" />
+        <div className="flex items-center gap-5">
+          <label htmlFor="file">
+            <img
+              src="./img.png"
+              alt="Attach Image"
+              className="h-4 w-4 cursor-pointer"
+            />
           </label>
           <input
             type="file"
@@ -215,8 +309,16 @@ const Chat = () => {
             style={{ display: "none" }}
             onChange={handleImg}
           />
-          <img src="./camera.png" alt="" className="h-4 w-4 cursor-pointer" />
-          <img src="./mic.png" alt="" className="h-4 w-4 cursor-pointer" />
+          <img
+            src="./camera.png"
+            alt="Camera"
+            className="h-4 w-4 cursor-pointer"
+          />
+          <img
+            src="./mic.png"
+            alt="Microphone"
+            className="h-4 w-4 cursor-pointer"
+          />
         </div>
         <input
           type="text"
@@ -233,15 +335,16 @@ const Chat = () => {
         <div className="relative">
           <img
             src="./emoji.png"
-            alt=""
+            alt="Emoji Picker"
             className="h-4 w-4 cursor-pointer"
             onClick={() => setEmoji((emoji) => !emoji)}
           />
-          <div className="absolute bottom-10 left-0">
-            <EmojiPicker open={emoji} onEmojiClick={handleEmoji} />
-          </div>
+          {emoji && (
+            <div className="absolute bottom-10 left-0">
+              <EmojiPicker onEmojiClick={handleEmoji} />
+            </div>
+          )}
         </div>
-
         <button
           className="rounded-md bg-[#5183fe] p-1 px-3"
           onClick={handleSend}

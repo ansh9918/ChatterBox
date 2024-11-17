@@ -5,19 +5,18 @@ import AddUser from "./AddUser";
 import supabase from "../../lib/supabase";
 
 const Chatlist = () => {
-  const [chats, setChats] = useState([]);
-  const [addMode, setAddMode] = useState(false);
-  const [input, setInput] = useState("");
+  const [addMode, setAddMode] = useState(false); // Toggles the AddUser component
+  const [chats, setChats] = useState([]); // Stores the list of chats
+  const [input, setInput] = useState(""); // Search input state
 
   const { currentUser } = useUserStore();
   const { changeChat } = useChatStore();
 
+  // Fetch chats on mount or when currentUser changes
   useEffect(() => {
-    if (!currentUser?.id) return; // Ensure currentUser is defined before fetching chats
-
     const fetchChats = async () => {
       try {
-        const { data: userChats, error } = await supabase
+        const { data, error } = await supabase
           .from("userchats")
           .select("chats")
           .eq("id", currentUser.id)
@@ -28,75 +27,116 @@ const Chatlist = () => {
           return;
         }
 
-        const promises = userChats.chats.map(async (item) => {
-          const { data: user, error: userError } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", item.receiverId)
-            .single();
+        if (!data || !Array.isArray(data.chats)) {
+          console.warn("No chats found for the current user.");
+          setChats([]);
+          return;
+        }
 
-          if (userError) {
-            console.error("Error fetching user info:", userError);
-            return null;
-          }
+        const chatData = await Promise.all(
+          data.chats.map(async (chatItem) => {
+            if (!chatItem.receiverId) {
+              console.warn(
+                "Skipping chat item with missing receiverId:",
+                chatItem,
+              );
+              return null; // Skip invalid entries
+            }
 
-          return { ...item, user };
-        });
+            // Fetch user details
+            const { data: user, error: userError } = await supabase
+              .from("users")
+              .select("*")
+              .eq("id", chatItem.receiverId)
+              .single();
 
-        const chatData = await Promise.all(promises);
+            if (userError) {
+              console.error("Error fetching user info:", userError);
+              return null; // Skip users with fetch errors
+            }
+
+            return { ...chatItem, user }; // Merge chat item with user info
+          }),
+        );
+
+        // Filter out null values (skipped invalid or error entries)
         setChats(
-          chatData.filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt),
+          chatData
+            .filter((item) => item !== null)
+            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
         );
       } catch (err) {
-        console.error("Unexpected error:", err);
+        console.error("Unexpected error fetching chats:", err);
       }
     };
 
     fetchChats();
 
-    const interval = setInterval(fetchChats, 5000); // Poll every 5 seconds
+    // Set up real-time updates using Supabase channel API
+    const channel = supabase
+      .channel("userchats-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "userchats",
+          filter: `id=eq.${currentUser.id}`,
+        },
+        async (payload) => {
+          console.log("Real-time update received:", payload);
+          await fetchChats(); // Re-fetch chats on update
+        },
+      )
+      .subscribe();
 
-    return () => clearInterval(interval);
-  }, [currentUser?.id]);
+    // Clean up subscription on component unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser.id]);
 
+  // Handle selecting a chat
   const handleSelect = async (chat) => {
-    const updatedChats = chats.map(({ ...rest }) => rest); // Remove `user` here
-
-    const chatIndex = updatedChats.findIndex(
-      (item) => item.chatId === chat.chatId,
-    );
-
-    if (chatIndex > -1) {
-      updatedChats[chatIndex].isSeen = true;
-    }
-
     try {
+      // Mark the chat as seen
+      const updatedChats = chats.map((item) =>
+        item.chatId === chat.chatId ? { ...item, isSeen: true } : item,
+      );
+
+      // Update chats in Supabase
       const { error } = await supabase
         .from("userchats")
         .update({ chats: updatedChats })
         .eq("id", currentUser.id);
 
       if (error) {
-        throw new Error("Error updating chat as seen:", error);
+        console.error("Error updating chat as seen:", error);
+        return;
       }
 
-      changeChat(chat.chatId); // Remove `chat.user` here if not used
+      // Trigger chat change in the UI
+      changeChat(chat.chatId, chat.user);
     } catch (err) {
-      console.error(err);
+      console.error("Error selecting chat:", err);
     }
   };
 
-  const filteredChats = chats.filter((c) =>
-    c.user.username.toLowerCase().includes(input.toLowerCase()),
+  // Filter chats for search input
+  const filteredChats = chats.filter(
+    (chat) =>
+      chat.user &&
+      chat.user.username.toLowerCase().includes(input.toLowerCase()),
   );
 
   return (
     <div className="flex h-screen flex-col">
+      {/* Search and Add Button */}
       <div className="flex w-full items-center gap-5 px-5 py-2">
         <div className="flex items-center gap-5 rounded-md bg-[rgb(17,25,40)]/50 p-1 px-2">
           <img
             src="./search.png"
-            alt=""
+            alt="Search"
             className="h-4 w-4 bg-transparent text-white"
           />
           <input
@@ -109,15 +149,17 @@ const Chatlist = () => {
         <div className="h-6 w-6 rounded-md bg-[rgb(17,25,40)]/50">
           <img
             src={addMode ? "./minus.png" : "./plus.png"}
-            alt=""
+            alt="Toggle Add"
             className="h-full w-full p-[6px]"
             onClick={() => setAddMode((prev) => !prev)}
           />
         </div>
       </div>
+
+      {/* Chat List */}
       <div className="overflow-hidden">
-        <div className="mt-4 h-[73%] overflow-y-scroll">
-          {filteredChats.map((chat) => {
+        <div className="mt-4 h-[100%] overflow-y-scroll">
+          {filteredChats.map((chat) => (
             <div
               className="flex items-center justify-start gap-5 border-b-[1px] border-b-[#dddddd35] px-4 py-3"
               key={chat.chatId}
@@ -128,25 +170,27 @@ const Chatlist = () => {
             >
               <img
                 src={
-                  chat.user.blocked.includes(currentUser.id)
+                  chat?.user?.blocked?.includes(currentUser.id)
                     ? "./avatar.png"
-                    : chat.user.avatar || "./avatar.png"
+                    : chat?.user?.avatar || "./avatar.png"
                 }
-                alt=""
+                alt="Avatar"
                 className="h-10 w-10 rounded-full object-cover"
               />
               <div className="flex flex-col gap-[6px]">
                 <h3 className="text-sm font-medium tracking-wide">
-                  {chat.user.blocked.includes(currentUser.id)
+                  {chat?.user?.blocked?.includes(currentUser.id)
                     ? "User"
-                    : chat.user.username}
+                    : chat?.user?.username}
                 </h3>
                 <p className="text-xs">{chat.lastMessage}</p>
               </div>
-            </div>;
-          })}
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* Add User Component */}
       {addMode && <AddUser />}
     </div>
   );
