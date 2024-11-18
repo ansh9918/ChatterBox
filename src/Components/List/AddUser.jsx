@@ -9,15 +9,15 @@ const AddUser = () => {
   // Handles user search by username
   const handleSearch = async (e) => {
     e.preventDefault(); // Prevents page reload on form submission
-    console.log("Search form submitted"); // Debugging log to verify function call
+    //console.log("Search form submitted"); // Debugging log to verify function call
 
     const formData = new FormData(e.target);
     const username = formData.get("username");
 
-    console.log("Username from form:", username); // Debugging log for username
+    //console.log("Username from form:", username); // Debugging log for username
 
     if (!username) {
-      console.log("No username entered.");
+      //console.log("No username entered.");
       return;
     }
 
@@ -30,13 +30,13 @@ const AddUser = () => {
         .maybeSingle();
 
       if (error) {
-        console.error("Error finding user:", error);
+        //console.error("Error finding user:", error);
         setUser(null);
       } else if (data) {
         setUser(data); // Set found user data
-        console.log("User found:", data); // Debugging log for found user
+        //console.log("User found:", data); // Debugging log for found user
       } else {
-        console.log("User not found");
+        // console.log("User not found");
       }
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -46,7 +46,7 @@ const AddUser = () => {
   // Handles the creation of a new chat between the current user and the found user
   const handleAdd = async () => {
     try {
-      console.log("Creating a new chat...");
+      //console.log("Creating a new chat...");
 
       // Generate a unique chat ID
       const chatId = `chat_${Date.now()}`;
@@ -60,10 +60,10 @@ const AddUser = () => {
         .single();
 
       if (fetchError) {
-        console.error(
-          "Error fetching current user's chats:",
-          fetchError.message,
-        );
+        // console.error(
+        //   "Error fetching current user's chats:",
+        //   fetchError.message,
+        // );
         return;
       }
 
@@ -115,14 +115,14 @@ const AddUser = () => {
         .eq("id", currentUser.id);
 
       if (updateError) {
-        console.error(
-          "Error updating current user's chats:",
-          updateError.message,
-        );
+        // console.error(
+        //   "Error updating current user's chats:",
+        //   updateError.message,
+        // );
         return;
       }
 
-      console.log("Current user's chats updated successfully!");
+      //console.log("Current user's chats updated successfully!");
 
       /** Step 2: Update Receiver's Chats */
       // Fetch the receiver's chats
@@ -134,10 +134,10 @@ const AddUser = () => {
           .single();
 
       if (receiverFetchError) {
-        console.error(
-          "Error fetching receiver's chats:",
-          receiverFetchError.message,
-        );
+        // console.error(
+        //   "Error fetching receiver's chats:",
+        //   receiverFetchError.message,
+        // );
         return;
       }
 
@@ -189,20 +189,20 @@ const AddUser = () => {
         .eq("id", user.id);
 
       if (receiverUpdateError) {
-        console.error(
-          "Error updating receiver's chats:",
-          receiverUpdateError.message,
-        );
+        // console.error(
+        //   "Error updating receiver's chats:",
+        //   receiverUpdateError.message,
+        // );
         return;
       }
 
-      console.log("Receiver's chats updated successfully!");
-      console.log(
-        "Chat added successfully between:",
-        currentUser.id,
-        "and",
-        user.id,
-      );
+      // console.log("Receiver's chats updated successfully!");
+      // console.log(
+      //   "Chat added successfully between:",
+      //   currentUser.id,
+      //   "and",
+      //   user.id,
+      // );
     } catch (err) {
       console.error("Unexpected error adding chat:", err);
     }

@@ -14,8 +14,8 @@ const Login = () => {
     try {
       // Original file
       const file = e.target.files[0];
-      console.log("originalFile instanceof Blob", file instanceof Blob); // true
-      console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
+      // console.log("originalFile instanceof Blob", file instanceof Blob); // true
+      // console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
 
       // Compression options
       const options = {
@@ -26,15 +26,15 @@ const Login = () => {
 
       // Compress the file
       const compressedFile = await imageCompression(file, options);
-      console.log(
-        "compressedFile instanceof Blob",
-        compressedFile instanceof Blob,
-      ); // true
-      console.log(
-        `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
-      );
+      // console.log(
+      //   "compressedFile instanceof Blob",
+      //   compressedFile instanceof Blob,
+      // ); // true
+      // console.log(
+      //   `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
+      // );
 
-      console.log("Compressed file:", compressedFile);
+      // console.log("Compressed file:", compressedFile);
 
       // Create a preview URL for the compressed image
       const compressedFileURL = URL.createObjectURL(compressedFile);
@@ -44,7 +44,7 @@ const Login = () => {
         url: compressedFileURL,
       });
 
-      console.log("Image compression successful!");
+      //console.log("Image compression successful!");
     } catch (error) {
       console.error("Error compressing the image:", error);
     }
@@ -120,7 +120,7 @@ const Login = () => {
 
       toast.success("Account created! You can log in now!");
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       toast.error("Error: " + err.message);
     } finally {
       setLoading(false);
@@ -146,7 +146,7 @@ const Login = () => {
 
       // You can redirect the user or handle successful login here
     } catch (err) {
-      console.log(err);
+      // console.log(err);
       toast.error(err.message);
     } finally {
       setLoading(false);

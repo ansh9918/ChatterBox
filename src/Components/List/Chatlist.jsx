@@ -23,12 +23,12 @@ const Chatlist = () => {
           .single();
 
         if (error) {
-          console.error("Error fetching user chats:", error);
+          //console.error("Error fetching user chats:", error);
           return;
         }
 
         if (!data || !Array.isArray(data.chats)) {
-          console.warn("No chats found for the current user.");
+          //console.warn("No chats found for the current user.");
           setChats([]);
           return;
         }
@@ -51,7 +51,7 @@ const Chatlist = () => {
               .single();
 
             if (userError) {
-              console.error("Error fetching user info:", userError);
+              //console.error("Error fetching user info:", userError);
               return null; // Skip users with fetch errors
             }
 
@@ -111,7 +111,7 @@ const Chatlist = () => {
         .eq("id", currentUser.id);
 
       if (error) {
-        console.error("Error updating chat as seen:", error);
+        //console.error("Error updating chat as seen:", error);
         return;
       }
 

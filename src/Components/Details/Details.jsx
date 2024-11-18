@@ -24,7 +24,7 @@ const Details = () => {
   };
   useEffect(() => {
     const fetchSharedImages = async () => {
-      console.log("Fetching shared images for chatId:", chatId);
+      //console.log("Fetching shared images for chatId:", chatId);
 
       const { data, error } = await supabase
         .from("userchats")
@@ -33,17 +33,17 @@ const Details = () => {
         .single();
 
       if (error) {
-        console.error("Error fetching shared images:", error);
+        //console.error("Error fetching shared images:", error);
         return;
       }
 
-      console.log("Fetched userchats data:", data);
+      //console.log("Fetched userchats data:", data);
 
       // Find the chat object corresponding to chatId
       const currentChat = data.chats.find((c) => c.chatId === chatId);
 
       if (!currentChat) {
-        console.warn("No chat found for chatId:", chatId);
+        // console.warn("No chat found for chatId:", chatId);
         setSharedImages([]); // Default to no shared images
         return;
       }
@@ -51,7 +51,7 @@ const Details = () => {
       // Extract shared images from messages
       const images = currentChat.messages.filter((message) => message.img);
 
-      console.log("Shared images:", images);
+      //console.log("Shared images:", images);
       setSharedImages(images);
     };
 
@@ -76,7 +76,7 @@ const Details = () => {
       .subscribe();
 
     return () => {
-      console.log("Unsubscribing from real-time updates.");
+      //console.log("Unsubscribing from real-time updates.");
       supabase.removeChannel(subscription);
     };
   }, [currentUser.id, chatId]);

@@ -30,7 +30,7 @@ const Chat = () => {
   // Fetch chat details and set up real-time updates
   useEffect(() => {
     const fetchMessages = async () => {
-      console.log("Fetching chat messages for chatId:", chatId);
+      //console.log("Fetching chat messages for chatId:", chatId);
 
       const { data, error } = await supabase
         .from("userchats")
@@ -39,22 +39,22 @@ const Chat = () => {
         .single();
 
       if (error) {
-        console.error("Error fetching chat messages:", error);
+        //console.error("Error fetching chat messages:", error);
         return;
       }
 
-      console.log("Fetched userchats data:", data);
+      //console.log("Fetched userchats data:", data);
 
       // Find the chat object corresponding to chatId
       const currentChat = data.chats.find((c) => c.chatId === chatId);
 
       if (!currentChat) {
-        console.warn("No chat found for chatId:", chatId);
+        //console.warn("No chat found for chatId:", chatId);
         setChat({ messages: [] }); // Default to empty messages
         return;
       }
 
-      console.log("Fetched chat object:", currentChat);
+      //console.log("Fetched chat object:", currentChat);
       setChat(currentChat);
     };
 
@@ -79,7 +79,7 @@ const Chat = () => {
       .subscribe();
 
     return () => {
-      console.log("Unsubscribing from real-time updates.");
+      //console.log("Unsubscribing from real-time updates.");
       supabase.removeChannel(subscription);
     };
   }, [currentUser.id, chatId]);
@@ -96,8 +96,8 @@ const Chat = () => {
     try {
       // Original file
       const file = e.target.files[0];
-      console.log("originalFile instanceof Blob", file instanceof Blob); // true
-      console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
+      //console.log("originalFile instanceof Blob", file instanceof Blob); // true
+      //console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
 
       // Compression options
       const options = {
@@ -108,15 +108,15 @@ const Chat = () => {
 
       // Compress the file
       const compressedFile = await imageCompression(file, options);
-      console.log(
-        "compressedFile instanceof Blob",
-        compressedFile instanceof Blob,
-      ); // true
-      console.log(
-        `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
-      );
+      // console.log(
+      //   "compressedFile instanceof Blob",
+      //   compressedFile instanceof Blob,
+      // ); // true
+      // console.log(
+      //   `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
+      // );
 
-      console.log("Compressed file:", compressedFile);
+      //console.log("Compressed file:", compressedFile);
 
       // Create a preview URL for the compressed image
       const compressedFileURL = URL.createObjectURL(compressedFile);
@@ -126,7 +126,7 @@ const Chat = () => {
         url: compressedFileURL,
       });
 
-      console.log("Image compression successful!");
+      //console.log("Image compression successful!");
     } catch (error) {
       console.error("Error compressing the image:", error);
     }
@@ -139,12 +139,12 @@ const Chat = () => {
     let imgUrl = null;
 
     try {
-      console.log("Sending message...");
+      //console.log("Sending message...");
 
       // Handle image upload if an image is provided
       if (img.file) {
         imgUrl = await upload(img.file, currentUser.id);
-        console.log("Image URL:", imgUrl);
+        //console.log("Image URL:", imgUrl);
       }
       const newMessage = {
         senderId: currentUser.id, // ID of the sender
@@ -161,7 +161,7 @@ const Chat = () => {
         .single();
 
       if (currentUserError) {
-        console.error("Error fetching current user's chats:", currentUserError);
+        //console.error("Error fetching current user's chats:", currentUserError);
         return;
       }
 
@@ -183,7 +183,7 @@ const Chat = () => {
         .update({ chats: updatedChatsForCurrentUser })
         .eq("id", currentUser.id);
 
-      console.log("Message added to current user's chats.");
+      //console.log("Message added to current user's chats.");
 
       // Fetch chats for the receiver
       const { data: receiverChats, error: receiverError } = await supabase
@@ -193,7 +193,7 @@ const Chat = () => {
         .single();
 
       if (receiverError) {
-        console.error("Error fetching receiver's chats:", receiverError);
+        //console.error("Error fetching receiver's chats:", receiverError);
         return;
       }
 
@@ -216,7 +216,7 @@ const Chat = () => {
         .update({ chats: updatedChatsForReceiver })
         .eq("id", user.id);
 
-      console.log("Message added to receiver's chats.");
+      //console.log("Message added to receiver's chats.");
     } catch (err) {
       console.error("Error sending message:", err);
     } finally {
@@ -225,7 +225,7 @@ const Chat = () => {
         url: "",
       });
       setText("");
-      console.log("Message send process completed.");
+      // console.log("Message send process completed.");
     }
   };
 
