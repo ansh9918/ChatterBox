@@ -5,6 +5,7 @@ import supabase from "../../lib/supabase";
 import { useChatStore } from "../../lib/chatStore";
 import { format, parseISO } from "date-fns"; // Corrected import
 import upload from "../../lib/upload";
+import imageCompression from "browser-image-compression";
 
 const Chat = () => {
   const [emoji, setEmoji] = useState(false); // Controls emoji picker visibility
@@ -91,18 +92,49 @@ const Chat = () => {
   };
 
   // Handle image selection
-  const handleImg = (e) => {
-    if (e.target.files[0]) {
+  const handleImg = async (e) => {
+    try {
+      // Original file
+      const file = e.target.files[0];
+      console.log("originalFile instanceof Blob", file instanceof Blob); // true
+      console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
+
+      // Compression options
+      const options = {
+        maxSizeMB: 1, // Maximum file size in MB
+        maxWidthOrHeight: 350, // Max width or height in pixels
+        useWebWorker: true, // Use multi-threading (faster)
+      };
+
+      // Compress the file
+      const compressedFile = await imageCompression(file, options);
+      console.log(
+        "compressedFile instanceof Blob",
+        compressedFile instanceof Blob,
+      ); // true
+      console.log(
+        `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
+      );
+
+      console.log("Compressed file:", compressedFile);
+
+      // Create a preview URL for the compressed image
+      const compressedFileURL = URL.createObjectURL(compressedFile);
+
       setImg({
-        file: e.target.files[0],
-        url: URL.createObjectURL(e.target.files[0]),
+        file: compressedFile,
+        url: compressedFileURL,
       });
+
+      console.log("Image compression successful!");
+    } catch (error) {
+      console.error("Error compressing the image:", error);
     }
   };
 
   // Handle sending a message
   const handleSend = async () => {
-    if (text === "") return;
+    if (!text.trim() && !img.file) return;
 
     let imgUrl = null;
 
@@ -111,19 +143,14 @@ const Chat = () => {
 
       // Handle image upload if an image is provided
       if (img.file) {
-        const { data: imgUrlData, error: imgUrlError } = await upload(img.file);
-        if (imgUrlError) {
-          console.error("Error uploading image:", imgUrlError);
-        } else {
-          imgUrl = imgUrlData;
-          console.log("Image uploaded successfully:", imgUrl);
-        }
+        imgUrl = await upload(img.file, currentUser.id);
+        console.log("Image URL:", imgUrl);
       }
       const newMessage = {
         senderId: currentUser.id, // ID of the sender
         text,
         createdAt: new Date().toISOString(),
-        ...(imgUrl && { img: imgUrl }),
+        ...(imgUrl ? { img: imgUrl } : {}),
       };
 
       // Fetch chats for the current user
@@ -267,15 +294,17 @@ const Chat = () => {
                   />
                 )}
                 {/* Message Text */}
+
                 <p
                   className={`rounded-lg p-3 text-sm ${
                     isCurrentUser
                       ? "bg-purple-500 text-white"
                       : "bg-[rgb(17,25,40)]/30 text-white"
-                  }`}
+                  } ${message.text ? "block" : "hidden"}`}
                 >
-                  {message.text || "No content"}
+                  {message.text}
                 </p>
+
                 {/* Message Timestamp */}
                 <span className="text-[11px] text-gray-500">
                   {message.createdAt

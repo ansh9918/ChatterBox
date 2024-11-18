@@ -1,16 +1,85 @@
+import { useEffect, useState } from "react";
 import { useChatStore } from "../../lib/chatStore";
 import supabase from "../../lib/supabase";
 import { useUserStore } from "../../lib/userStore";
 
 const Details = () => {
+  const [showDiv, setShowDiv] = useState(false);
+  const [sharedImages, setSharedImages] = useState([]);
+  const [modalImage, setModalImage] = useState(""); // For storing the image to display in a modal
+  const [showModal, setShowModal] = useState(false);
+
   const {
     user,
+    chatId,
     isCurrentUserBlocked,
     isReceiverBlocked,
     changeBlock,
     resetChat,
   } = useChatStore();
   const { currentUser } = useUserStore();
+  const handleImageClick = (imgUrl) => {
+    setModalImage(imgUrl);
+    setShowModal(true);
+  };
+  useEffect(() => {
+    const fetchSharedImages = async () => {
+      console.log("Fetching shared images for chatId:", chatId);
+
+      const { data, error } = await supabase
+        .from("userchats")
+        .select("chats")
+        .eq("id", currentUser.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching shared images:", error);
+        return;
+      }
+
+      console.log("Fetched userchats data:", data);
+
+      // Find the chat object corresponding to chatId
+      const currentChat = data.chats.find((c) => c.chatId === chatId);
+
+      if (!currentChat) {
+        console.warn("No chat found for chatId:", chatId);
+        setSharedImages([]); // Default to no shared images
+        return;
+      }
+
+      // Extract shared images from messages
+      const images = currentChat.messages.filter((message) => message.img);
+
+      console.log("Shared images:", images);
+      setSharedImages(images);
+    };
+
+    fetchSharedImages();
+
+    // Real-time subscription to userchats updates
+    const subscription = supabase
+      .channel("public:userchats")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "userchats",
+          filter: `id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          console.log("Real-time update received:", payload);
+          fetchSharedImages(); // Re-fetch shared images on update
+        },
+      )
+      .subscribe();
+
+    return () => {
+      console.log("Unsubscribing from real-time updates.");
+      supabase.removeChannel(subscription);
+    };
+  }, [currentUser.id, chatId]);
 
   const handleBlock = async () => {
     if (!user) return;
@@ -99,7 +168,10 @@ const Details = () => {
             <div>
               <p className="text-sm">Shared photos</p>
             </div>
-            <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
+            <div
+              className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50"
+              onClick={() => setShowDiv((prev) => !prev)}
+            >
               <img
                 src="./arrowDown.png"
                 alt=""
@@ -107,26 +179,36 @@ const Details = () => {
               />
             </div>
           </div>
-
-          <div className="flex flex-col gap-[10px] p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center justify-center gap-4">
-                <img
-                  src=""
-                  alt="Shared"
-                  className="h-9 w-9 rounded-lg object-cover"
-                />
-                <h1>photo.png</h1>
-              </div>
-              <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
-                <img
-                  src="./download.png"
-                  alt=""
-                  className="h-full w-full bg-transparent p-[6px]"
-                />
+          {showDiv && (
+            <div className="mt-3 max-h-[200px] gap-2 overflow-y-auto px-3 transition-all duration-300">
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {sharedImages.map((image, index) => (
+                  <img
+                    key={index}
+                    src={image.img}
+                    alt="Shared"
+                    className="h-12 w-12 cursor-pointer rounded-md object-cover"
+                    onClick={() => handleImageClick(image.img)} // Optional: enlarge or open in modal
+                  />
+                ))}
               </div>
             </div>
-          </div>
+          )}
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <img
+                src={modalImage}
+                alt="Full View"
+                className="max-h-full max-w-full rounded-md"
+              />
+              <button
+                className="absolute right-4 top-4 text-2xl text-white"
+                onClick={() => setShowModal(false)}
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="w-full px-3">

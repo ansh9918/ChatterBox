@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import supabase from "../../lib/supabase";
 import upload from "../../lib/upload";
+import imageCompression from "browser-image-compression";
 
 const Login = () => {
   const [avatar, setAvatar] = useState({
@@ -9,11 +10,44 @@ const Login = () => {
     url: "",
   });
   const [loading, setLoading] = useState(false);
-  const handleAvatar = (e) => {
-    setAvatar({
-      file: e.target.files[0],
-      url: URL.createObjectURL(e.target.files[0]),
-    });
+  const handleAvatar = async (e) => {
+    try {
+      // Original file
+      const file = e.target.files[0];
+      console.log("originalFile instanceof Blob", file instanceof Blob); // true
+      console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
+
+      // Compression options
+      const options = {
+        maxSizeMB: 1, // Maximum file size in MB
+        maxWidthOrHeight: 350, // Max width or height in pixels
+        useWebWorker: true, // Use multi-threading (faster)
+      };
+
+      // Compress the file
+      const compressedFile = await imageCompression(file, options);
+      console.log(
+        "compressedFile instanceof Blob",
+        compressedFile instanceof Blob,
+      ); // true
+      console.log(
+        `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
+      );
+
+      console.log("Compressed file:", compressedFile);
+
+      // Create a preview URL for the compressed image
+      const compressedFileURL = URL.createObjectURL(compressedFile);
+
+      setAvatar({
+        file: compressedFile,
+        url: compressedFileURL,
+      });
+
+      console.log("Image compression successful!");
+    } catch (error) {
+      console.error("Error compressing the image:", error);
+    }
   };
 
   const handleRegister = async (e) => {
