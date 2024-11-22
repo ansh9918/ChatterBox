@@ -70,7 +70,7 @@ const Chat = () => {
         supabase.removeChannel(subscription);
       };
     };
-
+    fetchMessages();
     subscribeToMessages();
   }, [currentUser, chatId]);
 
