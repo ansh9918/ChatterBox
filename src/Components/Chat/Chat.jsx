@@ -26,11 +26,6 @@ const Chat = () => {
 
   // Auto-scroll to the last message when chat messages change
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chat?.messages]);
-
-  // Fetch chat details and set up real-time updates
-  useEffect(() => {
     const fetchMessages = async () => {
       const { data, error } = await supabase
         .from("userchats")
@@ -39,20 +34,20 @@ const Chat = () => {
         .single();
 
       if (error) {
+        console.error("Error fetching messages:", error);
         return;
       }
 
-      // Find the chat object corresponding to chatId
       const currentChat = data.chats.find((c) => c.chatId === chatId);
 
       if (!currentChat) {
-        setChat({ messages: [] }); // Default to empty messages
+        setChat({ messages: [] });
         return;
       }
 
       setChat(currentChat);
     };
-    fetchMessages();
+
     const subscribeToMessages = () => {
       const subscription = supabase
         .channel("public:userchats")
@@ -60,8 +55,15 @@ const Chat = () => {
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "userchats" },
           (payload) => {
-            console.log("Real-time message received:", payload);
-            fetchMessages(); // Re-fetch messages to update the UI
+            console.log("Real-time update received:", payload);
+
+            const updatedChat = payload.new.chats.find(
+              (c) => c.chatId === chatId,
+            );
+
+            if (updatedChat) {
+              setChat({ messages: [...chat.messages, updatedChat] });
+            }
           },
         )
         .subscribe();
@@ -70,9 +72,20 @@ const Chat = () => {
         supabase.removeChannel(subscription);
       };
     };
+
     fetchMessages();
-    subscribeToMessages();
-  }, [currentUser, chatId]);
+    const unsubscribe = subscribeToMessages();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUser, chatId, chat.messages]);
+
+  useEffect(() => {
+    if (chat?.messages?.length) {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [chat?.messages]);
 
   // Handle emoji selection
   const handleEmoji = (e) => {
