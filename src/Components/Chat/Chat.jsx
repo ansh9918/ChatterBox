@@ -72,7 +72,7 @@ const Chat = () => {
     };
 
     subscribeToMessages();
-  }, [currentUser.id, chatId]);
+  }, [currentUser, chatId]);
 
   // Handle emoji selection
   const handleEmoji = (e) => {
