@@ -134,7 +134,7 @@ const Details = () => {
     <div className="flex flex-1 flex-col items-center justify-center">
       <div className="flex w-full flex-col items-center gap-[10px] border-b border-b-[#dddddd35] p-3">
         <img
-          src={user?.avatar || "./avatar.png"}
+          src={user?.avatar || "assets/avatar.png"}
           alt=""
           className="h-20 w-20 rounded-full object-cover"
         />
@@ -147,7 +147,7 @@ const Details = () => {
           </div>
           <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
             <img
-              src="./arrowUp.png"
+              src="assets/arrowUp.png"
               alt=""
               className="h-full w-full bg-transparent p-[6px]"
             />
@@ -159,7 +159,7 @@ const Details = () => {
           </div>
           <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
             <img
-              src="./arrowUp.png"
+              src="assets/arrowUp.png"
               alt=""
               className="h-full w-full bg-transparent p-[6px]"
             />
@@ -175,7 +175,7 @@ const Details = () => {
               onClick={() => setShowDiv((prev) => !prev)}
             >
               <img
-                src="./arrowDown.png"
+                src="assets/arrowDown.png"
                 alt=""
                 className="h-full w-full bg-transparent p-[6px]"
               />

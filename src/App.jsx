@@ -43,7 +43,10 @@ function App() {
   if (isLoading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="bg-photu flex h-screen items-center justify-center border-2 border-white/15 text-white">
+    <div className="bg-photu relative flex h-screen items-center justify-center border-2 border-white/15 text-white">
+      <div className="absolute left-0 top-0 p-3 py-6">
+        <h1 className="text-2xl font-bold">ChatterBox</h1>
+      </div>
       <div className="m-auto flex h-[90vh] w-[80vw] overflow-hidden rounded-[12px] bg-[rgb(17,25,40)]/75 saturate-[1.8] backdrop-blur-lg">
         {currentUser ? (
           <>

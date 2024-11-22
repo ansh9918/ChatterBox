@@ -230,9 +230,9 @@ const AddUser = () => {
           <div className="flex w-full items-center justify-between gap-20">
             <div className="flex items-center gap-3">
               <img
-                src={user.avatar || "./avatar.png"}
+                src={user.avatar || "assets/avatar.png"}
                 alt={`${user.username}'s avatar`}
-                onError={(e) => (e.target.src = "./avatar.png")}
+                onError={(e) => (e.target.src = "assets/avatar.png")}
                 className="h-14 w-14 rounded-full"
               />
               <h3 className="text-md font-medium tracking-wide text-white">

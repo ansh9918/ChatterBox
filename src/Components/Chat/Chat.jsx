@@ -52,7 +52,7 @@ const Chat = () => {
 
       setChat(currentChat);
     };
-
+    fetchMessages();
     const subscribeToMessages = () => {
       const subscription = supabase
         .channel("public:userchats")
@@ -127,10 +127,10 @@ const Chat = () => {
       };
 
       // Optimistically update UI
-      setChat((prevChat) => ({
-        ...prevChat,
-        messages: [...prevChat.messages, newMessage],
-      }));
+      // setChat((prevChat) => ({
+      //   ...prevChat,
+      //   messages: [...prevChat.messages, newMessage],
+      // }));
 
       // Fetch current user's chats
       const { data: currentUserChats, error: currentUserError } = await supabase
@@ -209,7 +209,7 @@ const Chat = () => {
       <div className="flex items-center justify-between border-b border-b-[#dddddd35] p-3 px-5">
         <div className="flex items-center gap-5">
           <img
-            src={user?.avatar || "./avatar.png"}
+            src={user?.avatar || "assets/avatar.png"}
             alt="User Avatar"
             className="h-12 w-12 rounded-full object-cover"
           />
@@ -221,16 +221,21 @@ const Chat = () => {
         </div>
         <div className="flex items-center gap-4">
           <img
-            src="./phone.png"
+            src="assets/phone.png"
             alt="Call"
             className="h-4 w-4 cursor-pointer"
           />
           <img
-            src="./video.png"
+            src="assets/video.png"
             alt="Video Call"
             className="h-4 w-4 cursor-pointer"
           />
-          <img src="./info.png" alt="Info" className="h-4 w-4 cursor-pointer" />
+
+          <img
+            src="assets/info.png"
+            alt="Info"
+            className="h-4 w-4 cursor-pointer"
+          />
         </div>
       </div>
 
@@ -248,7 +253,7 @@ const Chat = () => {
               {/* Sender's Avatar */}
               {!isCurrentUser && (
                 <img
-                  src={user?.avatar || "./avatar.png"}
+                  src={user?.avatar || "assets/avatar.png"}
                   alt="Sender Avatar"
                   className="h-5 w-5 rounded-full object-cover"
                 />
@@ -296,7 +301,7 @@ const Chat = () => {
         <div className="flex items-center gap-5">
           <label htmlFor="file">
             <img
-              src="./img.png"
+              src="assets/img.png"
               alt="Attach Image"
               className="h-4 w-4 cursor-pointer"
             />
@@ -308,12 +313,12 @@ const Chat = () => {
             onChange={handleImg}
           />
           <img
-            src="./camera.png"
+            src="assets/camera.png"
             alt="Camera"
             className="h-4 w-4 cursor-pointer"
           />
           <img
-            src="./mic.png"
+            src="assets/mic.png"
             alt="Microphone"
             className="h-4 w-4 cursor-pointer"
           />
@@ -332,7 +337,7 @@ const Chat = () => {
         />
         <div className="relative">
           <img
-            src="./emoji.png"
+            src="assets/emoji.png"
             alt="Emoji Picker"
             className="h-4 w-4 cursor-pointer"
             onClick={() => setEmoji((emoji) => !emoji)}
