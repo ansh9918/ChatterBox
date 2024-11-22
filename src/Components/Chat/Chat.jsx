@@ -11,7 +11,7 @@ dayjs.extend(relativeTime);
 
 const Chat = () => {
   const [emoji, setEmoji] = useState(false); // Controls emoji picker visibility
-  const [chat, setChat] = useState(null); // Current chat object
+  const [chat, setChat] = useState({ messages: [] }); // Current chat object
   const [text, setText] = useState(""); // Current input text
   const [img, setImg] = useState({
     file: null,
@@ -24,7 +24,6 @@ const Chat = () => {
 
   const endRef = useRef(null); // For scrolling to the latest message
 
-  // Auto-scroll to the last message when chat messages change
   useEffect(() => {
     const fetchMessages = async () => {
       const { data, error } = await supabase
@@ -62,7 +61,11 @@ const Chat = () => {
             );
 
             if (updatedChat) {
-              setChat({ messages: [...chat.messages, updatedChat] });
+              // Ensuring chat exists and is updated properly
+              setChat((prevChat) => ({
+                ...prevChat,
+                messages: [...prevChat.messages, updatedChat],
+              }));
             }
           },
         )
@@ -79,7 +82,7 @@ const Chat = () => {
     return () => {
       unsubscribe();
     };
-  }, [currentUser, chatId, chat.messages]);
+  }, [currentUser, chatId, chat]); // Add `chat` to dependency array
 
   useEffect(() => {
     if (chat?.messages?.length) {
