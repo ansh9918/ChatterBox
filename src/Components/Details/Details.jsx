@@ -55,31 +55,33 @@ const Details = () => {
       setSharedImages(images);
     };
 
-    fetchSharedImages();
+    if (currentUser && chatId) {
+      fetchSharedImages();
 
-    // Real-time subscription to userchats updates
-    const subscription = supabase
-      .channel("public:userchats")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "userchats",
-          filter: `id=eq.${currentUser.id}`,
-        },
-        (payload) => {
-          console.log("Real-time update received:", payload);
-          fetchSharedImages(); // Re-fetch shared images on update
-        },
-      )
-      .subscribe();
+      // Real-time subscription to userchats updates
+      const subscription = supabase
+        .channel("public:userchats")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "userchats",
+            filter: `id=eq.${currentUser.id}`,
+          },
+          (payload) => {
+            console.log("Real-time update received:", payload);
+            fetchSharedImages(); // Re-fetch shared images on update
+          },
+        )
+        .subscribe();
 
-    return () => {
-      //console.log("Unsubscribing from real-time updates.");
-      supabase.removeChannel(subscription);
-    };
-  }, [currentUser.id, chatId]);
+      return () => {
+        //console.log("Unsubscribing from real-time updates.");
+        supabase.removeChannel(subscription);
+      };
+    }
+  }, [currentUser, chatId]);
 
   const handleBlock = async () => {
     if (!user) return;

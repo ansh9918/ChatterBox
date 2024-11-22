@@ -100,6 +100,7 @@ const Chatlist = () => {
   const handleSelect = async (chat) => {
     try {
       // Mark the chat as seen
+      console.log(chat);
       const updatedChats = chats.map((item) =>
         item.chatId === chat.chatId ? { ...item, isSeen: true } : item,
       );
@@ -116,6 +117,7 @@ const Chatlist = () => {
       }
 
       // Trigger chat change in the UI
+      console.log(chat.user);
       changeChat(chat.chatId, chat.user);
     } catch (err) {
       console.error("Error selecting chat:", err);
@@ -183,7 +185,9 @@ const Chatlist = () => {
                     ? "User"
                     : chat?.user?.username}
                 </h3>
-                <p className="text-xs">{chat.lastMessage}</p>
+                <p className="w-20 overflow-hidden text-ellipsis whitespace-nowrap text-xs">
+                  {chat.lastMessage}
+                </p>
               </div>
             </div>
           ))}

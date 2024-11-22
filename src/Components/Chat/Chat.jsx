@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "../../lib/userStore";
 import supabase from "../../lib/supabase";
 import { useChatStore } from "../../lib/chatStore";
-import { format, parseISO } from "date-fns"; // Corrected import
 import upload from "../../lib/upload";
 import imageCompression from "browser-image-compression";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 
 const Chat = () => {
   const [emoji, setEmoji] = useState(false); // Controls emoji picker visibility
@@ -30,8 +32,6 @@ const Chat = () => {
   // Fetch chat details and set up real-time updates
   useEffect(() => {
     const fetchMessages = async () => {
-      //console.log("Fetching chat messages for chatId:", chatId);
-
       const { data, error } = await supabase
         .from("userchats")
         .select("chats")
@@ -39,49 +39,39 @@ const Chat = () => {
         .single();
 
       if (error) {
-        //console.error("Error fetching chat messages:", error);
         return;
       }
-
-      //console.log("Fetched userchats data:", data);
 
       // Find the chat object corresponding to chatId
       const currentChat = data.chats.find((c) => c.chatId === chatId);
 
       if (!currentChat) {
-        //console.warn("No chat found for chatId:", chatId);
         setChat({ messages: [] }); // Default to empty messages
         return;
       }
 
-      //console.log("Fetched chat object:", currentChat);
       setChat(currentChat);
     };
 
-    fetchMessages();
+    const subscribeToMessages = () => {
+      const subscription = supabase
+        .channel("public:userchats")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "userchats" },
+          (payload) => {
+            console.log("Real-time message received:", payload);
+            fetchMessages(); // Re-fetch messages to update the UI
+          },
+        )
+        .subscribe();
 
-    // Real-time subscription to userchats updates
-    const subscription = supabase
-      .channel("public:userchats")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "userchats",
-          filter: `id=eq.${currentUser.id}`,
-        },
-        (payload) => {
-          console.log("Real-time update received:", payload);
-          fetchMessages(); // Re-fetch chat on update
-        },
-      )
-      .subscribe();
-
-    return () => {
-      //console.log("Unsubscribing from real-time updates.");
-      supabase.removeChannel(subscription);
+      return () => {
+        supabase.removeChannel(subscription);
+      };
     };
+
+    subscribeToMessages();
   }, [currentUser.id, chatId]);
 
   // Handle emoji selection
@@ -96,27 +86,16 @@ const Chat = () => {
     try {
       // Original file
       const file = e.target.files[0];
-      //console.log("originalFile instanceof Blob", file instanceof Blob); // true
-      //console.log(`originalFile size ${file.size / 1024 / 1024} MB`);
 
       // Compression options
       const options = {
         maxSizeMB: 1, // Maximum file size in MB
-        maxWidthOrHeight: 350, // Max width or height in pixels
+        maxWidthOrHeight: 200, // Max width or height in pixels
         useWebWorker: true, // Use multi-threading (faster)
       };
 
       // Compress the file
       const compressedFile = await imageCompression(file, options);
-      // console.log(
-      //   "compressedFile instanceof Blob",
-      //   compressedFile instanceof Blob,
-      // ); // true
-      // console.log(
-      //   `compressedFile size ${compressedFile.size / 1024 / 1024} MB`,
-      // );
-
-      //console.log("Compressed file:", compressedFile);
 
       // Create a preview URL for the compressed image
       const compressedFileURL = URL.createObjectURL(compressedFile);
@@ -125,35 +104,35 @@ const Chat = () => {
         file: compressedFile,
         url: compressedFileURL,
       });
-
-      //console.log("Image compression successful!");
     } catch (error) {
       console.error("Error compressing the image:", error);
     }
   };
 
-  // Handle sending a message
   const handleSend = async () => {
-    if (!text.trim() && !img.file) return;
+    if (text.trim() === "" && !img.file) return;
 
     let imgUrl = null;
 
     try {
-      //console.log("Sending message...");
-
-      // Handle image upload if an image is provided
       if (img.file) {
         imgUrl = await upload(img.file, currentUser.id);
-        //console.log("Image URL:", imgUrl);
       }
+
       const newMessage = {
-        senderId: currentUser.id, // ID of the sender
-        text,
+        senderId: currentUser.id,
+        text: text.trim() || "Image",
         createdAt: new Date().toISOString(),
-        ...(imgUrl ? { img: imgUrl } : {}),
+        ...(imgUrl && { img: imgUrl }),
       };
 
-      // Fetch chats for the current user
+      // Optimistically update UI
+      setChat((prevChat) => ({
+        ...prevChat,
+        messages: [...prevChat.messages, newMessage],
+      }));
+
+      // Fetch current user's chats
       const { data: currentUserChats, error: currentUserError } = await supabase
         .from("userchats")
         .select("chats")
@@ -183,28 +162,26 @@ const Chat = () => {
         .update({ chats: updatedChatsForCurrentUser })
         .eq("id", currentUser.id);
 
-      //console.log("Message added to current user's chats.");
+      console.log("Successfully updated current user's chats.");
 
-      // Fetch chats for the receiver
-      const { data: receiverChats, error: receiverError } = await supabase
+      // Fetch receiver's chats
+      const { data: recieverChats, error: receiverError } = await supabase
         .from("userchats")
         .select("chats")
         .eq("id", user.id)
         .single();
 
       if (receiverError) {
-        //console.error("Error fetching receiver's chats:", receiverError);
+        console.error("Error fetching receiver's chats:", receiverError);
         return;
       }
 
-      // Update the chat messages for the receiver
-      const updatedChatsForReceiver = receiverChats.chats.map((chat) => {
+      const updatedChatsForReciever = recieverChats.chats.map((chat) => {
         if (chat.chatId === chatId) {
           return {
             ...chat,
             lastMessage: text,
             updatedAt: new Date().toISOString(),
-            isSeen: false, // Mark as unseen for the receiver
             messages: [...(chat.messages || []), newMessage],
           };
         }
@@ -213,19 +190,16 @@ const Chat = () => {
 
       await supabase
         .from("userchats")
-        .update({ chats: updatedChatsForReceiver })
+        .update({ chats: updatedChatsForReciever })
         .eq("id", user.id);
 
-      //console.log("Message added to receiver's chats.");
-    } catch (err) {
-      console.error("Error sending message:", err);
+      console.log("Successfully updated receiver's chats.");
+    } catch (error) {
+      console.error("Error sending message:", error);
     } finally {
-      setImg({
-        file: null,
-        url: "",
-      });
+      // Reset input fields
+      setImg({ file: null, url: "" });
       setText("");
-      // console.log("Message send process completed.");
     }
   };
 
@@ -269,7 +243,7 @@ const Chat = () => {
               key={index}
               className={`flex gap-3 ${
                 isCurrentUser ? "justify-end" : "justify-start"
-              }`}
+              } `}
             >
               {/* Sender's Avatar */}
               {!isCurrentUser && (
@@ -281,7 +255,7 @@ const Chat = () => {
               )}
               {/* Message Bubble */}
               <div
-                className={`flex flex-col ${
+                className={`flex max-w-[70%] flex-col ${
                   isCurrentUser ? "items-end" : "items-start"
                 }`}
               >
@@ -298,8 +272,8 @@ const Chat = () => {
                 <p
                   className={`rounded-lg p-3 text-sm ${
                     isCurrentUser
-                      ? "bg-purple-500 text-white"
-                      : "bg-[rgb(17,25,40)]/30 text-white"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-500/50 text-white"
                   } ${message.text ? "block" : "hidden"}`}
                 >
                   {message.text}
@@ -307,12 +281,7 @@ const Chat = () => {
 
                 {/* Message Timestamp */}
                 <span className="text-[11px] text-gray-500">
-                  {message.createdAt
-                    ? format(
-                        parseISO(message.createdAt), // Parse the ISO string to a valid date
-                        "PPpp",
-                      )
-                    : "Invalid date"}
+                  {dayjs(message.createdAt).fromNow()}
                 </span>
               </div>
             </div>
