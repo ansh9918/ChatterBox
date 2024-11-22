@@ -191,7 +191,7 @@ const Login = () => {
         >
           <label htmlFor="avatar" className="flex items-center gap-5 underline">
             <img
-              src={avatar.url || "./avatar.png"}
+              src={avatar.url || "/assets/avatar.png"}
               alt=""
               className="h-12 w-12 rounded-lg object-cover"
             />

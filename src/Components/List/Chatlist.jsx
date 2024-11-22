@@ -137,7 +137,7 @@ const Chatlist = () => {
       <div className="flex w-full items-center gap-5 px-5 py-2">
         <div className="flex items-center gap-5 rounded-md bg-[rgb(17,25,40)]/50 p-1 px-2">
           <img
-            src="assets/search.png"
+            src="/assets/search.png"
             alt="Search"
             className="h-4 w-4 bg-transparent text-white"
           />
@@ -150,7 +150,7 @@ const Chatlist = () => {
         </div>
         <div className="h-6 w-6 rounded-md bg-[rgb(17,25,40)]/50">
           <img
-            src={addMode ? "assets/minus.png" : "assets/plus.png"}
+            src={addMode ? "/assets/minus.png" : "/assets/plus.png"}
             alt="Toggle Add"
             className="h-full w-full p-[6px]"
             onClick={() => setAddMode((prev) => !prev)}
@@ -173,8 +173,8 @@ const Chatlist = () => {
               <img
                 src={
                   chat?.user?.blocked?.includes(currentUser.id)
-                    ? "assets/avatar.png"
-                    : chat?.user?.avatar || "assets/avatar.png"
+                    ? "/assets/avatar.png"
+                    : chat?.user?.avatar || "/assets/avatar.png"
                 }
                 alt="Avatar"
                 className="h-10 w-10 rounded-full object-cover"

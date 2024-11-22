@@ -8,7 +8,7 @@ const UserInfo = () => {
         <>
           <div className="flex items-center justify-center gap-3">
             <img
-              src={currentUser.avatar || "assets/avatar.png"}
+              src={currentUser.avatar || "/assets/avatar.png"}
               alt="Avatar"
               className="h-12 w-12 rounded-full object-cover"
             />
@@ -18,17 +18,17 @@ const UserInfo = () => {
           </div>
           <div className="flex items-center justify-center gap-5">
             <img
-              src="assets/more.png"
+              src="/assets/more.png"
               alt="More"
               className="h-4 w-4 cursor-pointer"
             />
             <img
-              src="assets/video.png"
+              src="/assets/video.png"
               alt="Video"
               className="h-4 w-4 cursor-pointer"
             />
             <img
-              src="assets/edit.png"
+              src="/assets/edit.png"
               alt="Edit"
               className="h-4 w-4 cursor-pointer"
             />
