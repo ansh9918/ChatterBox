@@ -10,7 +10,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 
 const Chat = () => {
-  const [emoji, setEmoji] = useState(false); // Controls emoji picker visibility
+  const [emoji, setEmoji] = useState(false);
+  const [imageView, setimageView] = useState(false);
   const [chat, setChat] = useState({ messages: [] }); // Current chat object
   const [text, setText] = useState(""); // Current input text
   const [img, setImg] = useState({
@@ -19,6 +20,7 @@ const Chat = () => {
   });
 
   const { currentUser } = useUserStore();
+  const switchComponent = useUserStore((state) => state.switchComponent);
   const { chatId, user, isCurrentUserBlocked, isReceiverBlocked } =
     useChatStore(); // Get chat ID and user details
 
@@ -38,59 +40,49 @@ const Chat = () => {
       }
 
       const currentChat = data.chats.find((c) => c.chatId === chatId);
-
-      if (!currentChat) {
-        setChat({ messages: [] });
-        return;
+      if (currentChat) {
+        setChat(currentChat);
       }
-
-      setChat(currentChat);
     };
 
-    const subscribeToMessages = () => {
-      const subscription = supabase
-        .channel("public:userchats")
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "userchats" },
-          (payload) => {
-            console.log("Real-time update received:", payload);
+    // Real-time subscription for updates
+    const subscription = supabase
+      .channel("public:userchats")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "userchats" },
+        (payload) => {
+          const updatedChat = payload.new.chats.find(
+            (c) => c.chatId === chatId,
+          );
 
-            const updatedChat = payload.new.chats.find(
-              (c) => c.chatId === chatId,
-            );
+          if (updatedChat) {
+            setChat((prevChat) => ({
+              ...prevChat,
+              messages: [
+                ...(prevChat.messages || []),
+                ...updatedChat.messages.slice(prevChat.messages.length),
+              ],
+            }));
+          }
+        },
+      )
+      .subscribe();
 
-            if (updatedChat) {
-              // Ensuring chat exists and is updated properly
-              setChat((prevChat) => ({
-                ...prevChat,
-                messages: [...prevChat.messages, updatedChat],
-              }));
-            }
-          },
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(subscription);
-      };
-    };
-
+    // Initial fetch
     fetchMessages();
-    const unsubscribe = subscribeToMessages();
 
     return () => {
-      unsubscribe();
+      supabase.removeChannel(subscription);
     };
-  }, [currentUser, chatId, chat]); // Add `chat` to dependency array
+  }, [currentUser.id, chatId]);
 
   useEffect(() => {
     if (chat?.messages?.length) {
-      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      endRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [chat?.messages]);
 
-  // Handle emoji selection
   const handleEmoji = (e) => {
     setText((prev) => prev + e.emoji);
     // Append emoji to text input
@@ -106,7 +98,7 @@ const Chat = () => {
       // Compression options
       const options = {
         maxSizeMB: 1, // Maximum file size in MB
-        maxWidthOrHeight: 200, // Max width or height in pixels
+        maxWidthOrHeight: 350, // Max width or height in pixels
         useWebWorker: true, // Use multi-threading (faster)
       };
 
@@ -120,6 +112,8 @@ const Chat = () => {
         file: compressedFile,
         url: compressedFileURL,
       });
+      setimageView(true);
+      console.log(imageView);
     } catch (error) {
       console.error("Error compressing the image:", error);
     }
@@ -137,16 +131,10 @@ const Chat = () => {
 
       const newMessage = {
         senderId: currentUser.id,
-        text: text.trim() || "Image",
+        text: text.trim(),
         createdAt: new Date().toISOString(),
         ...(imgUrl && { img: imgUrl }),
       };
-
-      // Optimistically update UI
-      // setChat((prevChat) => ({
-      //   ...prevChat,
-      //   messages: [...prevChat.messages, newMessage],
-      // }));
 
       // Fetch current user's chats
       const { data: currentUserChats, error: currentUserError } = await supabase
@@ -210,6 +198,7 @@ const Chat = () => {
         .eq("id", user.id);
 
       console.log("Successfully updated receiver's chats.");
+      setimageView(false);
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -222,20 +211,26 @@ const Chat = () => {
   return (
     <div className="flex h-[100%] flex-2 flex-col border-r border-r-[#dddddd35]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-b-[#dddddd35] p-3 px-5">
-        <div className="flex items-center gap-5">
+      <div className="flex items-center justify-between border-b border-b-[#dddddd35] p-3 px-4 sm:px-5">
+        <div className="flex items-center gap-3 sm:gap-5">
+          <button
+            className="text-xl font-semibold md:hidden"
+            onClick={() => switchComponent("chatList")}
+          >
+            ←
+          </button>
           <img
             src={user?.avatar || "/assets/avatar.png"}
             alt="User Avatar"
-            className="h-12 w-12 rounded-full object-cover"
+            className="h-10 w-10 rounded-full object-cover sm:h-12 sm:w-12"
           />
-          <div className="flex flex-col gap-[6px]">
-            <h3 className="text-sm font-medium tracking-wide">
+          <div className="flex flex-col gap-1 sm:gap-[6px]">
+            <h3 className="sm:text-md text-md font-medium tracking-wide text-white">
               {user?.username || "Unknown User"}
             </h3>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <img
             src="/assets/phone.png"
             alt="Call"
@@ -246,37 +241,38 @@ const Chat = () => {
             alt="Video Call"
             className="h-4 w-4 cursor-pointer"
           />
-
           <img
             src="/assets/info.png"
             alt="Info"
             className="h-4 w-4 cursor-pointer"
+            onClick={() => switchComponent("Details")}
           />
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
+      {/* Chat Messages */}
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
         {chat?.messages?.map((message, index) => {
           const isCurrentUser = message.senderId === currentUser?.id;
 
           return (
             <div
               key={index}
-              className={`flex gap-3 ${
+              className={`flex gap-2 sm:gap-3 ${
                 isCurrentUser ? "justify-end" : "justify-start"
-              } `}
+              }`}
             >
               {/* Sender's Avatar */}
               {!isCurrentUser && (
                 <img
                   src={user?.avatar || "/assets/avatar.png"}
                   alt="Sender Avatar"
-                  className="h-5 w-5 rounded-full object-cover"
+                  className="h-4 w-4 rounded-full object-cover sm:h-5 sm:w-5"
                 />
               )}
               {/* Message Bubble */}
               <div
-                className={`flex max-w-[70%] flex-col ${
+                className={`flex max-w-[80%] flex-col sm:max-w-[70%] ${
                   isCurrentUser ? "items-end" : "items-start"
                 }`}
               >
@@ -285,13 +281,12 @@ const Chat = () => {
                   <img
                     src={message.img}
                     alt="Message Attachment"
-                    className="max-w-[200px] rounded-lg"
+                    className="max-w-[150px] rounded-lg sm:max-w-[200px]"
                   />
                 )}
                 {/* Message Text */}
-
                 <p
-                  className={`rounded-lg p-3 text-sm ${
+                  className={`rounded-lg p-2 text-xs sm:p-3 sm:text-sm ${
                     isCurrentUser
                       ? "bg-blue-500 text-white"
                       : "bg-gray-500/50 text-white"
@@ -301,7 +296,7 @@ const Chat = () => {
                 </p>
 
                 {/* Message Timestamp */}
-                <span className="text-[11px] text-gray-500">
+                <span className="text-[10px] text-gray-500 sm:text-[11px]">
                   {dayjs(message.createdAt).fromNow()}
                 </span>
               </div>
@@ -313,29 +308,36 @@ const Chat = () => {
       </div>
 
       {/* Input Controls */}
-      <div className="bottom mt-auto flex items-center justify-between gap-5 border-t border-t-[#dddddd35] p-4">
-        <div className="flex items-center gap-5">
-          <label htmlFor="file">
-            <img
-              src="/assets/img.png"
-              alt="Attach Image"
-              className="h-4 w-4 cursor-pointer"
+      <div className="bottom mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-t-[#dddddd35] p-3 sm:gap-5 sm:p-4">
+        <div className="flex items-center gap-3 sm:gap-5">
+          <div className="relative">
+            <label htmlFor="file">
+              <img
+                src="/assets/img.png"
+                alt="Attach Image"
+                className="h-4 w-4 cursor-pointer"
+              />
+            </label>
+            <input
+              type="file"
+              id="file"
+              className="hidden"
+              onChange={handleImg}
             />
-          </label>
-          <input
-            type="file"
-            id="file"
-            style={{ display: "none" }}
-            onChange={handleImg}
-          />
+            {imageView && (
+              <div className="absolute bottom-60 left-60 h-52 w-52 rounded-lg border-2 border-gray-500 bg-[rgb(17,25,40)] p-3">
+                <img
+                  src={img.url}
+                  alt="Preview"
+                  className="h-44 w-44 rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+
           <img
             src="/assets/camera.png"
             alt="Camera"
-            className="h-4 w-4 cursor-pointer"
-          />
-          <img
-            src="/assets/mic.png"
-            alt="Microphone"
             className="h-4 w-4 cursor-pointer"
           />
         </div>
@@ -346,7 +348,7 @@ const Chat = () => {
               ? "You cannot send a message"
               : "Type a message..."
           }
-          className="flex-1 rounded-md border-none bg-[rgb(17,25,40)]/50 p-2 px-4 text-white outline-none"
+          className="flex-1 rounded-md border-none bg-[rgb(17,25,40)]/50 p-2 px-3 text-xs text-white outline-none sm:px-4 sm:text-sm"
           value={text}
           onChange={(e) => setText(e.target.value)}
           disabled={isCurrentUserBlocked || isReceiverBlocked}
@@ -359,13 +361,17 @@ const Chat = () => {
             onClick={() => setEmoji((emoji) => !emoji)}
           />
           {emoji && (
-            <div className="absolute bottom-10 left-0">
-              <EmojiPicker onEmojiClick={handleEmoji} />
+            <div className="absolute bottom-10 right-0 z-10 md:left-0">
+              <EmojiPicker
+                onEmojiClick={handleEmoji}
+                height={300}
+                width={300}
+              />
             </div>
           )}
         </div>
         <button
-          className="rounded-md bg-[#5183fe] p-1 px-3"
+          className="rounded-md bg-[#5183fe] p-1 px-3 text-xs sm:text-sm"
           onClick={handleSend}
           disabled={isCurrentUserBlocked || isReceiverBlocked}
         >

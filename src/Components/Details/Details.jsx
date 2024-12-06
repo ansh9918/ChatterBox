@@ -18,6 +18,8 @@ const Details = () => {
     resetChat,
   } = useChatStore();
   const { currentUser } = useUserStore();
+  const switchComponent = useUserStore((state) => state.switchComponent);
+
   const handleImageClick = (imgUrl) => {
     setModalImage(imgUrl);
     setShowModal(true);
@@ -131,8 +133,14 @@ const Details = () => {
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center">
-      <div className="flex w-full flex-col items-center gap-[10px] border-b border-b-[#dddddd35] p-3">
+    <div className="relative flex h-full flex-1 flex-col items-center justify-center">
+      <button
+        className="absolute left-5 top-2 text-2xl font-bold md:hidden"
+        onClick={() => switchComponent("Chats")}
+      >
+        ←
+      </button>
+      <div className="my-5 flex h-1/5 w-full flex-col items-center gap-[10px] border-b border-b-[#dddddd35] p-2">
         <img
           src={user?.avatar || "/assets/avatar.png"}
           alt=""
@@ -140,31 +148,7 @@ const Details = () => {
         />
         <h3 className="text-lg font-bold tracking-wide">{user?.username}</h3>
       </div>
-      <div className="flex h-full w-full flex-1 flex-col items-center justify-around gap-3 px-3 py-2">
-        <div className="flex w-full items-center justify-between px-3">
-          <div>
-            <p className="text-sm">Chat Settings</p>
-          </div>
-          <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
-            <img
-              src="/assets/arrowUp.png"
-              alt=""
-              className="h-full w-full bg-transparent p-[6px]"
-            />
-          </div>
-        </div>
-        <div className="flex w-full items-center justify-between px-3">
-          <div>
-            <p className="text-sm">Privacy & help</p>
-          </div>
-          <div className="h-5 w-5 rounded-full bg-[rgb(17,25,40)]/50">
-            <img
-              src="/assets/arrowUp.png"
-              alt=""
-              className="h-full w-full bg-transparent p-[6px]"
-            />
-          </div>
-        </div>
+      <div className="flex h-4/5 w-full flex-1 flex-col items-center justify-between gap-3 px-3 py-2">
         <div className="flex w-full flex-col">
           <div className="flex items-center justify-between px-3">
             <div>
@@ -228,7 +212,7 @@ const Details = () => {
       </div>
       <div className="flex w-full px-5 py-3">
         <button
-          className="w-full rounded-md bg-blue-400 p-1 text-center"
+          className="w-full rounded-md bg-blue-400 p-[6px] text-center"
           onClick={handleLogout}
         >
           logout

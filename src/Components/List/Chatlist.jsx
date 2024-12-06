@@ -5,15 +5,16 @@ import AddUser from "./AddUser";
 import supabase from "../../lib/supabase";
 
 const Chatlist = () => {
-  const [addMode, setAddMode] = useState(false); // Toggles the AddUser component
-  const [chats, setChats] = useState([]); // Stores the list of chats
-  const [input, setInput] = useState(""); // Search input state
+  const [addMode, setAddMode] = useState(false);
+  const [chats, setChats] = useState([]);
+  const [input, setInput] = useState("");
 
   const { currentUser } = useUserStore();
   const { changeChat } = useChatStore();
+  const switchComponent = useUserStore((state) => state.switchComponent);
 
-  // Fetch chats on mount or when currentUser changes
   useEffect(() => {
+    if (!currentUser) return;
     const fetchChats = async () => {
       try {
         const { data, error } = await supabase
@@ -94,37 +95,32 @@ const Chatlist = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUser.id]);
+  }, [currentUser]);
 
-  // Handle selecting a chat
   const handleSelect = async (chat) => {
     try {
-      // Mark the chat as seen
-      console.log(chat);
       const updatedChats = chats.map((item) =>
         item.chatId === chat.chatId ? { ...item, isSeen: true } : item,
       );
 
-      // Update chats in Supabase
       const { error } = await supabase
         .from("userchats")
         .update({ chats: updatedChats })
         .eq("id", currentUser.id);
 
       if (error) {
-        //console.error("Error updating chat as seen:", error);
+        console.error("Error updating chat as seen:", error);
         return;
       }
 
-      // Trigger chat change in the UI
-      console.log(chat.user);
+      // Refresh chats after marking as seen
       changeChat(chat.chatId, chat.user);
+      switchComponent("Chats");
     } catch (err) {
       console.error("Error selecting chat:", err);
     }
   };
 
-  // Filter chats for search input
   const filteredChats = chats.filter(
     (chat) =>
       chat.user &&
@@ -133,7 +129,6 @@ const Chatlist = () => {
 
   return (
     <div className="flex h-screen flex-col">
-      {/* Search and Add Button */}
       <div className="flex w-full items-center gap-5 px-5 py-2">
         <div className="flex items-center gap-5 rounded-md bg-[rgb(17,25,40)]/50 p-1 px-2">
           <img
@@ -158,7 +153,6 @@ const Chatlist = () => {
         </div>
       </div>
 
-      {/* Chat List */}
       <div className="overflow-hidden">
         <div className="mt-4 h-[100%] overflow-y-scroll">
           {filteredChats.map((chat) => (
@@ -194,7 +188,6 @@ const Chatlist = () => {
         </div>
       </div>
 
-      {/* Add User Component */}
       {addMode && <AddUser />}
     </div>
   );
