@@ -307,8 +307,8 @@ const Chat = () => {
       </div>
 
       {/* Input Controls */}
-      <div className="bottom mt-auto flex items-center justify-between border-t border-t-[#dddddd35] p-3 sm:gap-5 sm:p-4">
-        <div className="flex items-center gap-3 sm:gap-5">
+      <div className="bottom mt-auto flex items-center justify-between gap-1 border-t border-t-[#dddddd35] p-3 sm:gap-5 sm:p-4">
+        <div className="flex items-center">
           <div className="relative">
             <label htmlFor="file">
               <img
