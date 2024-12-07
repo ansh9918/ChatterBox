@@ -11,14 +11,13 @@ dayjs.extend(relativeTime);
 
 const Chat = () => {
   const [emoji, setEmoji] = useState(false);
-  const [imageView, setimageView] = useState(false);
+  const [imageView, setImageView] = useState(false);
   const [chat, setChat] = useState({ messages: [] }); // Current chat object
   const [text, setText] = useState(""); // Current input text
   const [img, setImg] = useState({
     file: null,
     url: "",
   });
-
   const { currentUser } = useUserStore();
   const switchComponent = useUserStore((state) => state.switchComponent);
   const { chatId, user, isCurrentUserBlocked, isReceiverBlocked } =
@@ -92,6 +91,7 @@ const Chat = () => {
   // Handle image selection
   const handleImg = async (e) => {
     try {
+      setImageView(true);
       // Original file
       const file = e.target.files[0];
 
@@ -112,8 +112,8 @@ const Chat = () => {
         file: compressedFile,
         url: compressedFileURL,
       });
-      setimageView(true);
-      console.log(imageView);
+
+      e.target.value = null;
     } catch (error) {
       console.error("Error compressing the image:", error);
     }
@@ -198,13 +198,12 @@ const Chat = () => {
         .eq("id", user.id);
 
       console.log("Successfully updated receiver's chats.");
-      setimageView(false);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    } finally {
-      // Reset input fields
+      setImageView(false);
+      console.log(imageView);
       setImg({ file: null, url: "" });
       setText("");
+    } catch (error) {
+      console.error("Error sending message:", error);
     }
   };
 
@@ -308,7 +307,7 @@ const Chat = () => {
       </div>
 
       {/* Input Controls */}
-      <div className="bottom mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-t-[#dddddd35] p-3 sm:gap-5 sm:p-4">
+      <div className="bottom mt-auto flex items-center justify-between border-t border-t-[#dddddd35] p-3 sm:gap-5 sm:p-4">
         <div className="flex items-center gap-3 sm:gap-5">
           <div className="relative">
             <label htmlFor="file">
@@ -321,25 +320,20 @@ const Chat = () => {
             <input
               type="file"
               id="file"
+              accept="image/*"
               className="hidden"
               onChange={handleImg}
             />
-            {imageView && (
-              <div className="absolute bottom-60 left-60 h-52 w-52 rounded-lg border-2 border-gray-500 bg-[rgb(17,25,40)] p-3">
+            {imageView ? (
+              <div className="absolute bottom-7 h-52 w-60 rounded-lg border-2 border-gray-500 bg-[rgb(17,25,40)] p-3">
                 <img
                   src={img.url}
                   alt="Preview"
-                  className="h-44 w-44 rounded-lg"
+                  className="h-full rounded-lg"
                 />
               </div>
-            )}
+            ) : null}
           </div>
-
-          <img
-            src="/assets/camera.png"
-            alt="Camera"
-            className="h-4 w-4 cursor-pointer"
-          />
         </div>
         <input
           type="text"
@@ -348,7 +342,7 @@ const Chat = () => {
               ? "You cannot send a message"
               : "Type a message..."
           }
-          className="flex-1 rounded-md border-none bg-[rgb(17,25,40)]/50 p-2 px-3 text-xs text-white outline-none sm:px-4 sm:text-sm"
+          className="rounded-md border-none bg-[rgb(17,25,40)]/50 p-2 px-3 text-xs text-white outline-none sm:px-4 sm:text-sm"
           value={text}
           onChange={(e) => setText(e.target.value)}
           disabled={isCurrentUserBlocked || isReceiverBlocked}
@@ -361,11 +355,11 @@ const Chat = () => {
             onClick={() => setEmoji((emoji) => !emoji)}
           />
           {emoji && (
-            <div className="absolute bottom-10 right-0 z-10 md:left-0">
+            <div className="absolute -right-5 bottom-7 z-10 mx-auto">
               <EmojiPicker
                 onEmojiClick={handleEmoji}
-                height={300}
-                width={300}
+                height={350}
+                width={250}
               />
             </div>
           )}
