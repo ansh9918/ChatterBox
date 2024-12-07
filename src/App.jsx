@@ -66,8 +66,8 @@ function App() {
     );
 
   return (
-    <div className="bg-photu relative flex h-screen items-center justify-center border-2 border-white/15 text-white">
-      <div className="m-auto flex h-[90vh] w-[80vw] overflow-hidden rounded-[12px] bg-[rgb(17,25,40)]/75 saturate-[1.8] backdrop-blur-lg">
+    <div className="bg-photu relative flex min-h-screen items-center justify-center border-2 border-white/15 text-white">
+      <div className="m-auto flex h-[90vh] w-[80vw] overflow-hidden rounded-[12px] bg-[rgb(17,25,40)]/75 saturate-[1.8] backdrop-blur-sm">
         {currentUser ? (
           <div className="h-full w-full">
             {/* Large Devices: Show List, Chat, and Detail */}

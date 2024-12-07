@@ -145,7 +145,7 @@ const Login = () => {
   return (
     <div className="my-10 flex h-full w-full flex-col items-center justify-center gap-10 px-5 md:px-10 lg:my-0">
       <div className="mx-auto flex h-1/4 flex-col items-center justify-center gap-3 lg:h-auto">
-        <h1 className="text-2xl font-semibold lg:text-3xl">
+        <h1 className="text-center text-2xl font-semibold lg:text-3xl">
           Welcome to ChatterBox
         </h1>
         <p>perfect place to chat !!</p>
